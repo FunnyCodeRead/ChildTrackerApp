@@ -1,32 +1,48 @@
 package com.example.childtrackerapp.admin
 
 import android.os.Bundle
-import androidx.activity.enableEdgeToEdge
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
-import com.example.childtrackerapp.R
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.ui.Modifier
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.compose.rememberNavController
+import com.example.childtrackerapp.data.repository.ScheduleRepository
+import com.example.childtrackerapp.schedule.navigation.AppNavHost
+import com.example.childtrackerapp.schedule.ui.theme.ChildTrackerAppTheme
+import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-import com.google.firebase.database.FirebaseDatabase
-import android.util.Log
-
-class MainActivity : AppCompatActivity() {
+@AndroidEntryPoint
+class MainActivity : ComponentActivity() {
+    @Inject
+    lateinit var repository: ScheduleRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
-
-        // Lấy instance của Realtime Database
-        val database = FirebaseDatabase.getInstance()
-        val myRef = database.getReference("testConnection")
-
-        // Thử ghi dữ liệu
-        myRef.setValue("Hello Firebase!")
-            .addOnSuccessListener {
-                Log.d("FirebaseTest", "Kết nối Firebase thành công!")
+        // Khởi tạo dữ liệu mẫu nếu chưa có (chỉ chạy lần đầu)
+        lifecycleScope.launch {
+            try {
+                repository.initializeSampleData()
+            } catch (e: Exception) {
+                // Log error nhưng không crash app
+                e.printStackTrace()
             }
-            .addOnFailureListener { e ->
-                Log.e("FirebaseTest", "Kết nối Firebase thất bại", e)
+        }
+
+        setContent {
+            ChildTrackerAppTheme {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    val navController = rememberNavController()
+                    AppNavHost(navController = navController)
+                }
             }
+        }
     }
 }
