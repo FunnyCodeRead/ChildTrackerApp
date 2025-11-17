@@ -1,5 +1,8 @@
 package com.example.childtrackerapp.schedule.ui.add
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -12,7 +15,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.example.childtrackerapp.schedule.ui.add.AddScheduleViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -22,17 +24,38 @@ fun AddScheduleScreen(
     onNavigateBack: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
+
+    // File picker launcher
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let { viewModel.importFromExcel(it) }
+    }
+
     LaunchedEffect(Unit) {
         viewModel.setDate(selectedDate)
     }
-    
-    LaunchedEffect(uiState.isSaved) {
-        if (uiState.isSaved) {
+
+    LaunchedEffect(uiState.success) {
+        if (uiState.success) {
+            viewModel.resetSuccess()
             onNavigateBack()
         }
     }
-    
+
+    // Show import result dialog
+    if (uiState.importProgress?.completed == true) {
+        ImportResultDialog(
+            progress = uiState.importProgress!!,
+            onDismiss = {
+                viewModel.clearImportProgress()
+                if (uiState.success) {
+                    onNavigateBack()
+                }
+            }
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -81,11 +104,13 @@ fun AddScheduleScreen(
                     )
                 }
             }
-            
+
             // Import from Excel Button
             OutlinedCard(
                 modifier = Modifier.fillMaxWidth(),
-                onClick = { viewModel.importFromExcel() }
+                onClick = {
+                    filePickerLauncher.launch("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                }
             ) {
                 Row(
                     modifier = Modifier
@@ -94,19 +119,31 @@ fun AddScheduleScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        Icons.Default.Upload,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "Thêm lịch trình bằng file Excel",
-                        color = MaterialTheme.colorScheme.primary
-                    )
+                    if (uiState.importProgress?.isImporting == true) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Đang import...",
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.Upload,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "Thêm lịch trình bằng file Excel",
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
-            
+
             // Divider
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -121,7 +158,7 @@ fun AddScheduleScreen(
                 )
                 HorizontalDivider(modifier = Modifier.weight(1f))
             }
-            
+
             // Title Field
             Card {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -140,7 +177,7 @@ fun AddScheduleScreen(
                     )
                 }
             }
-            
+
             // Time Fields
             Card {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -158,9 +195,9 @@ fun AddScheduleScreen(
                             style = MaterialTheme.typography.bodyLarge
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -179,7 +216,7 @@ fun AddScheduleScreen(
                                 modifier = Modifier.fillMaxWidth()
                             )
                         }
-                        
+
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = "Kết thúc *",
@@ -197,7 +234,7 @@ fun AddScheduleScreen(
                     }
                 }
             }
-            
+
             // Description Field
             Card {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -226,7 +263,7 @@ fun AddScheduleScreen(
                     )
                 }
             }
-            
+
             // Location Field
             Card {
                 Column(modifier = Modifier.padding(16.dp)) {
@@ -254,7 +291,7 @@ fun AddScheduleScreen(
                     )
                 }
             }
-            
+
             // Error Message
             if (uiState.error != null) {
                 Surface(
@@ -268,7 +305,7 @@ fun AddScheduleScreen(
                     )
                 }
             }
-            
+
             // Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -280,16 +317,17 @@ fun AddScheduleScreen(
                 ) {
                     Text("Hủy")
                 }
-                
+
                 Button(
                     onClick = { viewModel.saveSchedule() },
                     modifier = Modifier.weight(1f),
-                    enabled = !uiState.isLoading
+                    enabled = !uiState.isLoading && uiState.importProgress?.isImporting != true
                 ) {
                     if (uiState.isLoading) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(20.dp),
-                            strokeWidth = 2.dp
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
                         )
                     } else {
                         Text("Lưu lịch trình")
@@ -298,6 +336,65 @@ fun AddScheduleScreen(
             }
         }
     }
+}
+
+@Composable
+fun ImportResultDialog(
+    progress: ImportProgress,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    if (progress.errors.isEmpty()) Icons.Default.CheckCircle else Icons.Default.Warning,
+                    contentDescription = null,
+                    tint = if (progress.errors.isEmpty())
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.error
+                )
+                Text("Kết quả import")
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("✅ Đã import: ${progress.imported}/${progress.total} lịch trình")
+
+                if (progress.errors.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "⚠️ Có ${progress.errors.size} lỗi:",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = 200.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        progress.errors.forEach { error ->
+                            Text(
+                                "• $error",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Đóng")
+            }
+        }
+    )
 }
 
 private fun formatDate(dateStr: String): String {

@@ -16,37 +16,51 @@ import java.time.format.DateTimeFormatter
 @Composable
 fun AppNavHost(
     navController: NavHostController,
-    startDestination: String = Destinations.Daily.route
+    startDestination: String = "daily"
 ) {
     NavHost(
         navController = navController,
         startDestination = startDestination
     ) {
-        // Daily Screen
-        composable(Destinations.Daily.route) {
+        // Daily Screen - hỗ trợ nhận date từ weekly screen
+        composable(
+            route = "daily?date={date}",
+            arguments = listOf(
+                navArgument("date") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
+            )
+        ) { backStackEntry ->
+            val selectedDate = backStackEntry.arguments?.getString("date")
+
             DailyScreen(
+                initialDate = selectedDate, // Truyền ngày được chọn từ weekly
                 onNavigateToAdd = {
                     val today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE)
-                    navController.navigate(Destinations.AddSchedule.createRoute(today))
+                    navController.navigate("add_schedule/$today")
                 },
                 onNavigateToEdit = { scheduleId ->
-                    navController.navigate(Destinations.EditSchedule.createRoute(scheduleId))
+                    navController.navigate("edit_schedule/$scheduleId")
                 },
                 onNavigateToWeekly = {
-                    navController.navigate(Destinations.Weekly.route)
+                    navController.navigate("weekly")
                 }
             )
         }
 
         // Weekly Screen
-        composable(Destinations.Weekly.route) {
+        composable("weekly") {
             WeeklyScreen(
                 onNavigateToDaily = { date ->
-                    // Navigate back to daily screen with selected date
-                    navController.popBackStack()
+                    // Navigate to daily screen with selected date
+                    navController.navigate("daily?date=$date") {
+                        popUpTo("daily") { inclusive = true }
+                    }
                 },
                 onNavigateToAdd = { date ->
-                    navController.navigate(Destinations.AddSchedule.createRoute(date))
+                    navController.navigate("add_schedule/$date")
                 },
                 onBack = {
                     navController.popBackStack()
@@ -56,7 +70,7 @@ fun AppNavHost(
 
         // Add Schedule Screen
         composable(
-            route = Destinations.AddSchedule.route,
+            route = "add_schedule/{date}",
             arguments = listOf(
                 navArgument("date") { type = NavType.StringType }
             )
@@ -72,7 +86,7 @@ fun AppNavHost(
 
         // Edit Schedule Screen
         composable(
-            route = Destinations.EditSchedule.route,
+            route = "edit_schedule/{scheduleId}",
             arguments = listOf(
                 navArgument("scheduleId") { type = NavType.StringType }
             )

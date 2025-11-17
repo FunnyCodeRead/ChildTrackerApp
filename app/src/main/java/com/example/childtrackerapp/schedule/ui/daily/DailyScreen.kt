@@ -17,12 +17,20 @@ import com.example.childtrackerapp.schedule.ui.components.ScheduleItemCard
 @Composable
 fun DailyScreen(
     viewModel: DailyViewModel = hiltViewModel(),
+    initialDate: String? = null, // Thêm parameter này
     onNavigateToAdd: () -> Unit,
     onNavigateToEdit: (String) -> Unit,
     onNavigateToWeekly: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    
+
+    // Set ngày được chọn từ weekly screen
+    LaunchedEffect(initialDate) {
+        if (initialDate != null) {
+            viewModel.setSelectedDate(initialDate)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -77,7 +85,7 @@ fun DailyScreen(
                 onPreviousDay = { viewModel.previousDay() },
                 onNextDay = { viewModel.nextDay() }
             )
-            
+
             // Schedule List
             if (uiState.schedules.isEmpty()) {
                 EmptyScheduleView(onAddClick = onNavigateToAdd)

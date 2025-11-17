@@ -82,4 +82,29 @@ class DailyViewModel @Inject constructor(
             }
         }
     }
+
+    // Thêm method này vào DailyViewModel
+
+    fun setSelectedDate(date: String) {
+        _uiState.update { it.copy(selectedDate = date) }
+        loadSchedules()
+    }
+
+    // Method loadSchedules() để reload lịch của ngày được chọn
+    private fun loadSchedules() {
+        viewModelScope.launch {
+            repository.getSchedulesForDate(_uiState.value.selectedDate)
+                .catch { e ->
+                    _uiState.update { it.copy(error = e.message) }
+                }
+                .collect { schedules ->
+                    _uiState.update {
+                        it.copy(
+                            schedules = schedules,
+                            error = null
+                        )
+                    }
+                }
+        }
+    }
 }
