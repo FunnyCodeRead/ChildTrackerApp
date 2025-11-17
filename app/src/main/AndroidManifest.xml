@@ -2,26 +2,25 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-
-    <!-- Thêm permission để sử dụng Internet (bắt buộc cho Firebase) -->
+    <!-- Permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Thêm quyền đọc file -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
-    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
-
 
     <application
         android:name=".schedule.ScheduleApp"
@@ -35,24 +34,26 @@
         android:theme="@style/Theme.ChildTrackerApp"
         tools:targetApi="31">
 
+        <!-- MAIN ACTIVITY -->
         <activity
-            android:name=".admin.MainActivity"
+            android:name=".Athu.ui.LoginActivity"
             android:exported="true"
             android:theme="@style/Theme.ChildTrackerApp">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
         <activity
+            android:name=".admin.MainActivity"
+            android:exported="false"
+            android:theme="@style/Theme.ChildTrackerApp"/>
+        <activity
             android:name=".parent.ui.view.ParentMainActivity"
             android:exported="false" />
+
         <activity
             android:name=".child.ui.MainActivity_Child"
-            android:exported="false" />
-        <activity
-            android:name=".admin.MainActivity"
             android:exported="false" />
 
         <service
@@ -61,6 +62,7 @@
             android:exported="false"
             android:foregroundServiceType="location"
             tools:ignore="ForegroundServicePermission" />
+
     </application>
 
 </manifest>
