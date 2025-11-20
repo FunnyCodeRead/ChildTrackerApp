@@ -1,91 +1,70 @@
 package com.example.childtrackerapp.service
 
 import android.Manifest
-import android.app.*
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.LocationManager
 import android.os.Build
 import android.os.IBinder
-import android.os.Looper
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.example.childtrackerapp.R
-import com.example.childtrackerapp.child.data.ChildRepository
-import com.example.childtrackerapp.child.helper.GeoFenceHelper
-import com.google.android.gms.location.*
-import com.google.firebase.auth.FirebaseAuth
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 
 class LocationService : Service() {
 
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var repository: ChildRepository
+    private val NOTIFICATION_ID = 999
+    private val CHANNEL_ID = "location_channel"
 
     override fun onCreate() {
         super.onCreate()
 
-        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return stopSelf()
-        repository = ChildRepository(uid)
-
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-
-        startForegroundServiceNotification()
-        checkIfGpsEnabled()
-        requestLocationUpdates()
-    }
-
-    private fun startForegroundServiceNotification() {
-        val channelId = "location_channel"
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(
-                channelId, "Child Tracking", NotificationManager.IMPORTANCE_LOW
-            )
-            getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
-        }
-
-        val notif = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("Đang theo dõi vị trí")
-            .setSmallIcon(R.drawable.ic_location)
-            .setOngoing(true)
-            .build()
-
-        startForeground(1, notif)
-    }
-
-
-    private fun checkIfGpsEnabled() {
-        val manager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        if (!manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            val i = Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)
-            i.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-            startActivity(i)
+        // ✅ PHẢI gọi ngay trong onCreate(), không delay!
+        try {
+            createNotificationChannel()
+            val notification = buildNotification()
+            startForeground(NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            stopSelf()
         }
     }
 
-    private fun requestLocationUpdates() {
-        if (
-            ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            != PackageManager.PERMISSION_GRANTED
-        ) return
-
-        val req = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000).build()
-
-        fusedLocationClient.requestLocationUpdates(req, callback, Looper.getMainLooper())
-    }
-
-    private val callback = object : LocationCallback() {
-        override fun onLocationResult(result: LocationResult) {
-            val loc = result.lastLocation ?: return
-            CoroutineScope(Dispatchers.IO).launch {
-                repository.sendLocation(loc)
-            }
-            GeoFenceHelper.checkDangerZone(this@LocationService, loc)
-        }
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // Ghi log để debug
+        android.util.Log.d("LocationService", "onStartCommand called")
+        return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                CHANNEL_ID,
+                "Location Service",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply {
+                description = "Tracking child location"
+                setSound(null, null)
+            }
+
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            manager.createNotificationChannel(channel)
+        }
+    }
+
+    private fun buildNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
+        .setContentTitle("Location Service")
+        .setContentText("Running in background")
+        .setSmallIcon(R.drawable.ic_launcher_foreground)
+        .setOngoing(true)
+        .setPriority(NotificationCompat.PRIORITY_MIN)
+        .build()
+
+    override fun onDestroy() {
+        super.onDestroy()
+        stopForeground(STOP_FOREGROUND_REMOVE)
+    }
 }
